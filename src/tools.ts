@@ -10,6 +10,7 @@ import {
   extractCurrencyCode,
   pctChange,
   addPeriodChanges,
+  averageMetrics,
 } from "./helpers.js";
 
 function formatResult(data: unknown): string {
@@ -1054,20 +1055,12 @@ Note: ESTIMATED_EARNINGS and OBSERVED_ECPM are in micros (divide by 1,000,000).`
         }
       }
 
-      function avg(arr: Array<Record<string, string>>, key: string): number {
-        if (arr.length === 0) return 0;
-        return arr.reduce((s, r) => s + parseFloat(r[key] || "0"), 0) / arr.length;
-      }
-
       const metrics = ["ESTIMATED_EARNINGS", "IMPRESSIONS", "AD_REQUESTS", "IMPRESSION_RPM", "IMPRESSION_CTR"];
+      // averageMetrics rounds only count metrics; currency/rate metrics keep fractional precision.
       const summary = [
-        { PERIOD: "Weekday avg", DAYS: String(weekday.length) },
-        { PERIOD: "Weekend avg", DAYS: String(weekend.length) },
+        { PERIOD: "Weekday avg", DAYS: String(weekday.length), ...averageMetrics(weekday, metrics) },
+        { PERIOD: "Weekend avg", DAYS: String(weekend.length), ...averageMetrics(weekend, metrics) },
       ];
-      for (const m of metrics) {
-        (summary[0] as any)[m] = String(Math.round(avg(weekday, m)));
-        (summary[1] as any)[m] = String(Math.round(avg(weekend, m)));
-      }
 
       const diff: Record<string, string> = { PERIOD: "Weekend vs Weekday", DAYS: "-" };
       for (const m of metrics) {

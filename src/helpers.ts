@@ -82,15 +82,34 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 const ZERO_DECIMAL_CURRENCIES = new Set(["JPY", "KRW"]);
 
 /**
+ * Rate metrics measured per-mille (per 1000 impressions/requests). They are
+ * fractional regardless of the account currency, so they keep decimal places
+ * even for zero-decimal currencies.
+ */
+const RATE_METRICS = new Set(["OBSERVED_ECPM", "IMPRESSION_RPM"]);
+
+/** Metric keys representing integer counts; their averages are rounded for display. */
+const COUNT_METRICS = new Set(["IMPRESSIONS", "AD_REQUESTS", "MATCHED_REQUESTS", "CLICKS"]);
+
+/**
  * Format a numeric value as a currency string.
  * Falls back to `$` when currencyCode is omitted, for backward compatibility.
+ *
+ * Set `alwaysDecimals` for rate metrics (eCPM, RPM): these are fractional even
+ * in zero-decimal currencies like JPY/KRW, so a 0.49 ¥ eCPM must render as
+ * `¥0.49`, not `¥0`.
  */
-export function formatCurrency(value: string | number, currencyCode?: string): string {
+export function formatCurrency(
+  value: string | number,
+  currencyCode?: string,
+  options?: { alwaysDecimals?: boolean }
+): string {
   const num = typeof value === "string" ? parseFloat(value) : value;
   const code = currencyCode?.toUpperCase();
   const symbol = (code && CURRENCY_SYMBOLS[code]) || (code ? `${code} ` : "$");
   if (isNaN(num)) return `${symbol}0`;
-  const fractionDigits = code && ZERO_DECIMAL_CURRENCIES.has(code) ? 0 : 2;
+  const zeroDecimal = !options?.alwaysDecimals && !!code && ZERO_DECIMAL_CURRENCIES.has(code);
+  const fractionDigits = zeroDecimal ? 0 : 2;
   return `${symbol}${num.toFixed(fractionDigits)}`;
 }
 
@@ -121,7 +140,9 @@ export function formatReportTable(
   const formatted = rows.map((row) => {
     const out: Record<string, string> = {};
     for (const [k, v] of Object.entries(row)) {
-      out[k] = earningsKeys.includes(k) ? formatCurrency(v, options?.currency) : v;
+      out[k] = earningsKeys.includes(k)
+        ? formatCurrency(v, options?.currency, { alwaysDecimals: RATE_METRICS.has(k) })
+        : v;
     }
     return out;
   });
@@ -151,6 +172,25 @@ export function pctChange(prev: string | number, curr: string | number): string 
   if (isNaN(p) || isNaN(c) || p === 0) return "N/A";
   const pct = ((c - p) / Math.abs(p)) * 100;
   return `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
+}
+
+/**
+ * Average each metric across rows. Count metrics (impressions, requests, …) are
+ * rounded to whole numbers; currency and rate metrics keep their fractional
+ * precision so values like 0.49 average earnings or 2.34 RPM are not collapsed
+ * to 0/2 before formatting.
+ */
+export function averageMetrics(
+  rows: Array<Record<string, string>>,
+  metricKeys: string[]
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const key of metricKeys) {
+    const sum = rows.reduce((s, r) => s + parseFloat(r[key] || "0"), 0);
+    const avg = rows.length === 0 ? 0 : sum / rows.length;
+    out[key] = COUNT_METRICS.has(key) ? String(Math.round(avg)) : String(avg);
+  }
+  return out;
 }
 
 /** Add period-over-period change columns to time-series rows. */
