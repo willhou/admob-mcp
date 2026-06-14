@@ -879,7 +879,7 @@ Note: ESTIMATED_EARNINGS and OBSERVED_ECPM are in micros (divide by 1,000,000).`
         content: [{
           type: "text",
           text: formatReportTable(rows, {
-            currency, title: `Country eCPM Opportunity Analysis (last ${n} days)\nSorted by optimization opportunity (high volume + below-avg eCPM first)\nAvg eCPM: ${formatCurrency(avgEcpm, currency)}`,
+            currency, title: `Country eCPM Opportunity Analysis (last ${n} days)\nSorted by optimization opportunity (high volume + below-avg eCPM first)\nAvg eCPM: ${formatCurrency(avgEcpm, currency, { alwaysDecimals: true })}`,
           }),
         }],
       };

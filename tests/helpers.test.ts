@@ -39,6 +39,43 @@ describe("formatReportTable", () => {
   });
 });
 
+describe("formatReportTable with comparison (suffixed) columns", () => {
+  const rows = [
+    {
+      COUNTRY: "JP",
+      ESTIMATED_EARNINGS_NOW: "1234",
+      ESTIMATED_EARNINGS_PREV: "1000",
+      ESTIMATED_EARNINGS_CHG: "+23.4%",
+      IMPRESSION_RPM_LAST_YR: "2.34",
+    },
+  ];
+
+  it("formats suffixed amount columns in the account currency (JPY, zero-decimal)", () => {
+    const table = formatReportTable(rows, { currency: "JPY" });
+    expect(table).toContain("¥1234");
+    expect(table).toContain("¥1000");
+  });
+
+  it("keeps rate decimals on suffixed rate columns even for zero-decimal currencies", () => {
+    const table = formatReportTable(rows, { currency: "JPY" });
+    expect(table).toContain("¥2.34");
+  });
+
+  it("leaves percentage-change columns untouched", () => {
+    const table = formatReportTable(rows, { currency: "JPY" });
+    expect(table).toContain("+23.4%");
+    // The change column must not be mistaken for currency.
+    expect(table).not.toContain("¥23");
+    expect(table).not.toContain("¥+");
+  });
+
+  it("formats suffixed columns for two-decimal currencies too", () => {
+    const table = formatReportTable(rows, { currency: "USD" });
+    expect(table).toContain("$1234.00");
+    expect(table).toContain("$1000.00");
+  });
+});
+
 describe("averageMetrics", () => {
   it("rounds count metrics but preserves fractional currency and rate metrics", () => {
     const rows = [

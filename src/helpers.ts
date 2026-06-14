@@ -136,13 +136,24 @@ export function formatReportTable(
 
   const earningsKeys = options?.earningsKeys || ["ESTIMATED_EARNINGS", "OBSERVED_ECPM", "IMPRESSION_RPM"];
 
+  // Match a column to its base currency/rate metric, allowing comparison suffixes
+  // (e.g. ESTIMATED_EARNINGS_NOW, IMPRESSION_RPM_LAST_YR). Percentage-change columns
+  // (_CHG, _YOY, …) carry non-numeric values ("+5%", "N/A", "-") and are skipped by
+  // the numeric guard, so they keep their raw string instead of being formatted as money.
+  const currencyMetricFor = (key: string): string | undefined =>
+    earningsKeys.find((base) => key === base || key.startsWith(`${base}_`));
+  const isNumeric = (v: string): boolean =>
+    v !== "" && !v.includes("%") && Number.isFinite(Number(v));
+
   // Format currency / eCPM / RPM columns in the account currency (rows are already real numbers from parseReportRows)
   const formatted = rows.map((row) => {
     const out: Record<string, string> = {};
     for (const [k, v] of Object.entries(row)) {
-      out[k] = earningsKeys.includes(k)
-        ? formatCurrency(v, options?.currency, { alwaysDecimals: RATE_METRICS.has(k) })
-        : v;
+      const base = currencyMetricFor(k);
+      out[k] =
+        base && isNumeric(v)
+          ? formatCurrency(v, options?.currency, { alwaysDecimals: RATE_METRICS.has(base) })
+          : v;
     }
     return out;
   });
