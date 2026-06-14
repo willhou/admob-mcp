@@ -22,6 +22,18 @@ describe("formatCurrency", () => {
   it("ignores alwaysDecimals for currencies that already show decimals", () => {
     expect(formatCurrency("0.49", "USD", { alwaysDecimals: true })).toBe("$0.49");
   });
+
+  it("shows extra precision for a sub-cent rate so it does not round to zero", () => {
+    // A 0.0049 eCPM/RPM rounds to $0.00 at two decimals; rate columns must keep it visible.
+    expect(formatCurrency("0.0049", "USD", { alwaysDecimals: true })).toBe("$0.0049");
+    expect(formatCurrency("0.0049", "JPY", { alwaysDecimals: true })).toBe("¥0.0049");
+  });
+
+  it("does not add extra precision to normal rates or to non-rate amounts", () => {
+    expect(formatCurrency("2.34", "USD", { alwaysDecimals: true })).toBe("$2.34");
+    // A sub-cent plain amount (no alwaysDecimals) keeps the standard two decimals.
+    expect(formatCurrency("0.0049", "USD")).toBe("$0.00");
+  });
 });
 
 describe("formatReportTable", () => {

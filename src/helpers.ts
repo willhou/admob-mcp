@@ -97,7 +97,8 @@ const COUNT_METRICS = new Set(["IMPRESSIONS", "AD_REQUESTS", "MATCHED_REQUESTS",
  *
  * Set `alwaysDecimals` for rate metrics (eCPM, RPM): these are fractional even
  * in zero-decimal currencies like JPY/KRW, so a 0.49 ¥ eCPM must render as
- * `¥0.49`, not `¥0`.
+ * `¥0.49`, not `¥0`. Sub-cent rates (e.g. 0.0049) keep extra precision instead
+ * of collapsing to a misleading 0.00.
  */
 export function formatCurrency(
   value: string | number,
@@ -109,7 +110,9 @@ export function formatCurrency(
   const symbol = (code && CURRENCY_SYMBOLS[code]) || (code ? `${code} ` : "$");
   if (isNaN(num)) return `${symbol}0`;
   const zeroDecimal = !options?.alwaysDecimals && !!code && ZERO_DECIMAL_CURRENCIES.has(code);
-  const fractionDigits = zeroDecimal ? 0 : 2;
+  // A small but non-zero rate would round to 0.00 at two decimals; show 4 so it stays visible.
+  const subCentRate = !!options?.alwaysDecimals && num !== 0 && Number(num.toFixed(2)) === 0;
+  const fractionDigits = zeroDecimal ? 0 : subCentRate ? 4 : 2;
   return `${symbol}${num.toFixed(fractionDigits)}`;
 }
 
